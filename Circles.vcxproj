@@ -153,6 +153,14 @@
   <ItemGroup>
     <ClCompile Include="Circles.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="circle.htm">
+      <DeploymentContent>true</DeploymentContent>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="dog-2785074_640.jpg" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

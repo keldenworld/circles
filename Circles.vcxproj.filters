@@ -19,4 +19,14 @@
       <Filter>Fichiers sources</Filter>
     </ClCompile>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="circle.htm">
+      <Filter>Fichiers sources</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="dog-2785074_640.jpg">
+      <Filter>Fichiers de ressources</Filter>
+    </Image>
+  </ItemGroup>
 </Project>

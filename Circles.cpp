@@ -29,11 +29,8 @@ namespace ftw
         std::vector<sf::CircleShape> drawingPhysics;
         sf::Vector2f deltaPos {0,0};
         float zoom{ 1 };
-        struct ZoomType { int pos; };
-        const ZoomType zoomDown{ 1 };
-        const ZoomType zoomUp{ 0 };
+        bool logFlag{ true };
     public:
-        std::string type() { return "WorldVector"; }
         void initload()
         {
             sf::CircleShape shape(100);
@@ -45,20 +42,23 @@ namespace ftw
                 shape.setRadius(static_cast<float>(rand() % (64 + 3) - 3));
                 shape.setOutlineColor(sf::Color(rand() % 255, rand() % 255, rand() % 255));
                 shape.setOutlineThickness(1);
-                currentPhysics.emplace_back(sf::Vector2f(shape.getPosition().x, shape.getPosition().y));
+                currentPhysics.emplace_back(sf::Vector2f(shape.getPosition().x * zoom, shape.getPosition().y * zoom));
                 physics.emplace_back(data(shape,
                     sf::Vector2f(static_cast<float>(rand() % 32) - 16.0f, static_cast<float>(rand() % 32) - 16.0f),
                     sf::Vector2f(static_cast<float>(rand() % 32) - 16.0f, static_cast<float>(rand() % 32) - 16.0f),
                     static_cast<float>(rand() % 32),
                     static_cast<float>(rand() % 64)));
             }
+            zoomUpdate();
         }
         void log(std::string& txt)
         { 
             auto elem = physics.size();
             auto density = (float)elem / (float)MAXTerrain;
             txt += "Nb Elements: "+ std::to_string(elem) + "\n" +
-                "Delta Pos : " + std::to_string(deltaPos.x) + "/" + std::to_string(deltaPos.y) + "\n" +
+                "Delta Pos : " 
+                    + std::to_string(static_cast<int>(deltaPos.x)) + "/" 
+                    + std::to_string(static_cast<int>(deltaPos.y)) + "\n" +
                 "Zoom : " + std::to_string(zoom) + "\n" +
                 "Drawned Elements : " + std::to_string(drawingPhysics.size()) + "\n" +
                 "Density : " + std::to_string(density) + "\n" ;
@@ -101,12 +101,17 @@ namespace ftw
             if (bool containOldDataAtTheEndOfDrawingVector = (n != drawingPhysics.size()))
                 drawingPhysics.erase(drawingPhysics.begin() + n, drawingPhysics.end());
         }
-        void setZoom(ZoomType zt)
+        void zoomUp() { zoom += 0.2f; zoomUpdate(); }
+        void zoomDown() { zoom -= 0.2f; zoomUpdate(); }
+        void zoomUpdate ()
         {
-            zoom += (zt.pos == 0) ? 0.2f : -0.2f;
             if (zoom < 0.2f) zoom = 0.2f;
-            for (auto e : this->physics)
-                e.zoomedShape.setRadius(e.shape.getRadius() * zoom);
+            for (auto &e : this->physics)
+            {
+                auto newr = e.shape.getRadius() * zoom;
+                e.zoomedShape.setRadius(newr);
+                newr = 0;
+            }
         }
         void loop()
         {
@@ -127,6 +132,7 @@ namespace ftw
             auto myfps = ftw::FPS();
             while (window.isOpen())
             {
+                tmpstr = "";
                 {
                     ftw::timethat timet(timers, "update physics - CYAN", sf::Color::Cyan);
                     this->update();
@@ -134,6 +140,7 @@ namespace ftw
                 {
                     ftw::timethat timet(timers, "event loop + window.clear - GREEN", sf::Color::Green);
                     sf::Event event;
+                    tmpstr += "Commands : +/-, up/down, l, space, esc \n";
                     while (window.pollEvent(event))
                     {
                         if (event.type == sf::Event::Closed)
@@ -152,9 +159,11 @@ namespace ftw
                             else if (event.key.code == sf::Keyboard::Left)
                                 setDeltaPos(30, 0);
                             else if (event.key.code == sf::Keyboard::Subtract)
-                                setZoom(zoomDown);
+                                zoomDown();
                             else if (event.key.code == sf::Keyboard::Add)
-                                setZoom(zoomUp);
+                                zoomUp();
+                            else if (event.key.code == sf::Keyboard::L)
+                                logFlag = !logFlag;
                     }
                     window.clear();
                 }
@@ -173,21 +182,23 @@ namespace ftw
                     log(tmpstr);
                     tmpstr += timet.to_string();
                 }
+                if (logFlag) 
                 {
-                    ftw::timethat timet(timers, "log FPS - BLACK", sf::Color::Black);
-                    myfps.update();
-                    tmpstr +="\nFPS (basics " + this->type() + ") : " + std::to_string(myfps.get()) + "\n";
-                }
-                {
-                    auto LightPink = sf::Color(0xFF, 0xB6, 0xC1);
-                    ftw::timethat timet(timers, "prepare text log - LIGHTPINK", LightPink);
-                    text2prt.setString(tmpstr);
-                    tmpstr = "";
-                }
-                {
-                    auto Purple = sf::Color(0x80, 0x00, 0x80);
-                    ftw::timethat timet(timers, "print text log - PURPLE", Purple);
-                    window.draw(text2prt);
+                    {
+                        ftw::timethat timet(timers, "log FPS - BLACK", sf::Color::Black);
+                        myfps.update();
+                        tmpstr += "\nFPS (basics World Vector) : " + std::to_string(myfps.get()) + "\n";
+                    }
+                    {
+                        auto LightPink = sf::Color(0xFF, 0xB6, 0xC1);
+                        ftw::timethat timet(timers, "prepare text log - LIGHTPINK", LightPink);
+                        text2prt.setString("\n\n" + tmpstr);
+                    }
+                    {
+                        auto Purple = sf::Color(0x80, 0x00, 0x80);
+                        ftw::timethat timet(timers, "print text log - PURPLE", Purple);
+                        window.draw(text2prt);
+                    }
                 }
                 {
                     ftw::timethat timet(timers, "Windows.Display - MAGENTA", sf::Color::Magenta);
@@ -200,8 +211,7 @@ namespace ftw
             auto currentdt = std::chrono::system_clock::now();
             for (auto ii = physics.size(); ii > 0 ; ii--)
             {
-                int i = (int)ii - 1; // dirty, for deletePhysics algorithme
-                //auto ray = physics[i].shape.getRadius();
+                int i = (int)ii - 1; // dirty, for deletePhysics algorithm
                 auto mass = physics[i].mass;
                 auto dtm = static_cast<float>(std::chrono::duration_cast<std::chrono::milliseconds> (currentdt - physics[i].dt).count());
                 float friction = physics[i].friction;
@@ -217,16 +227,16 @@ namespace ftw
                 auto newx = equaDiff(force.x, friction, dtm, speed.x, mass, e_setdtm, x);
                 auto newy = equaDiff(force.y, friction, dtm, speed.y, mass, e_setdtm, y);
 
-                currentPhysics[i] = sf::Vector2f(newx * zoom, newy * zoom);
-
                 if (bool isOutOfTerrain = newx<0 || newx>MAXTerrain || newy<0 || newy>MAXTerrain)
                     deletePhysics(i);
+                else
+                    currentPhysics[i] = sf::Vector2f(newx * zoom, newy * zoom);
             }
         }
-        //replace with the last element in the vector (witch should be hopefully processed...)
+        //replace with the last element in the vector (witch should be hopefully already processed...)
         void deletePhysics(size_t iemElement)
         {
-            if (currentPhysics.size() - 1 == iemElement) return; //already the last one
+            if (currentPhysics.size() - 1 != iemElement)  //not the last one
             {
                 currentPhysics[iemElement] = currentPhysics.back();
                 drawingPhysics[iemElement] = drawingPhysics.back();
@@ -239,90 +249,8 @@ namespace ftw
     };
 }
 
-template <typename myContainer> 
-int executeWorld(myContainer* circles)
-{
-    sf::RenderWindow window(sf::VideoMode(1024, 768), "Hello Kelden World with SFML!");
-    window.setVerticalSyncEnabled(false);
-
-    sf::CircleShape shape(100);
-    shape.setPointCount(MAXPoint);
-    shape.setFillColor(sf::Color::Transparent);
-    for (int i = 0; i < MAXOBJ; i++)
-    {
-        shape.setPosition(static_cast<float>(rand() % 1024 - 255) + 255, static_cast<float>(rand() % 728 - 255) + 255);
-        shape.setRadius(static_cast<float>(rand() % (255 + 5) - 5));
-        shape.setOutlineColor(sf::Color(rand() % 255, rand() % 255, rand() % 255));
-        shape.setOutlineThickness(1);
-        circles->add(shape);
-    }
-
-    sf::Clock clock;
-    sf::Text text;
-    text.setCharacterSize(32);
-    text.setFillColor(sf::Color::White);
-    sf::Font font;
-    if (!font.loadFromFile("monofonto.ttf"))
-        return -1;
-    text.setFont(font);
-
-    std::map<std::string, std::tuple<sf::Color, float>> timers;
-    auto myfps = ftw::FPS();
-    while (window.isOpen())
-    {
-        ftw::timethat timet(timers, "chrono Frametime (n-1) - RED", sf::Color::Red);
-        {
-            ftw::timethat timet(timers, "event loop + window.clear - GREEN", sf::Color::Green);
-            sf::Event event;
-            while (window.pollEvent(event))
-                if (event.type == sf::Event::Closed)
-                    window.close();
-                else if (event.type == sf::Event::KeyPressed)
-                    if (event.key.code == sf::Keyboard::Escape)
-                        window.close();
-            window.clear();
-        }
-        {
-            ftw::timethat timet(timers, "windows.draw circles - BLUE", sf::Color::Blue);
-            for (auto& s : *circles)
-                window.draw(s);
-        }
-        {
-            ftw::timethat timet(timers, "log text and rectangles - GREEN", sf::Color::Green);
-            for (auto r : timet.to_rectangle())
-                window.draw(r);
-            myfps.update();
-            text.setString("\nFPS (basics " + circles->type() + ") : " + 
-                std::to_string(myfps.get()) + "\n"
-                + timet.to_string()
-            );
-            window.draw(text);
-        }
-        {
-            ftw::timethat timet(timers, "Windows.Display - MAGENTA", sf::Color::Magenta);
-            window.display();
-        }
-    }
-    return 0;
-}
-
 int main()
 {
-    {
-        auto world = ftw::world_basedonvector();
-        world.loop();
-    }
-    {
-        auto circles = std::make_unique<ftw::container_basedonvector<sf::CircleShape>>();
-        executeWorld<ftw::container_basedonvector<sf::CircleShape>>(circles.get());
-    }
-    {
-        auto circles = std::make_unique<ftw::container_basedonarray<sf::CircleShape>>();
-        executeWorld<ftw::container_basedonarray<sf::CircleShape>>(circles.get());
-    }
-    {
-        auto circles = std::make_unique<ftw::container_basedonlist<sf::CircleShape>>();
-        executeWorld<ftw::container_basedonlist<sf::CircleShape>>(circles.get());
-    }
-    return 0;
+    auto world = ftw::world_basedonvector();
+    world.loop();
 }

@@ -2,23 +2,26 @@
 #include <array>
 #include <list>
 
-const int MAXOBJ = 1024;
-const int MAXPoint = 16;
+const unsigned int MAXOBJ = 1024;
+const unsigned int MAXPoint = 16;
+const int MAXTerrain = 1024 * 2;
+const int MINScreen_X = 0;
+const int MINScreen_Y = 0;
+const int MAXScreen_X = 1024;
+const int MAXScreen_Y = 768;
 
 namespace ftw
 {
     template <class element>
     class container_basedonlist
     {
-        std::list<element> head;
-        size_t nbelement;
+        std::list<element> dataToDraw;
+        size_t nbelement {0};
     public:
         std::string type() { return "List"; }
-        typename std::list<element>::iterator begin() { return head.begin(); }
-        typename std::list<element>::iterator end() { return head.end(); };
-        element& operator ++ () { return std::next(element, 1); }
-        container_basedonlist() : nbelement{ 0 } {}
-        void add(const element& e) { head.insert(head.begin(), e); nbelement++; }
+        typename std::list<element>::iterator begin() { return dataToDraw.begin(); }
+        typename std::list<element>::iterator end() { return dataToDraw.end(); };
+        void add(const element& e) { dataToDraw.insert(dataToDraw.begin(), e); nbelement++; }
         size_t size() { return nbelement; }
     };
 
@@ -26,7 +29,7 @@ namespace ftw
     class container_basedonarray
     {
         std::array<element, MAXOBJ> datas;
-        size_t currentpos;
+        size_t currentpos{ 0 };
     public:
         std::string type() { return "Array"; }
         element* begin() { return (datas.size() == 0) ? nullptr : &datas.at(0); }
@@ -36,7 +39,6 @@ namespace ftw
             element* afterlastelem = ++lastelem;
             return afterlastelem;
         }
-        container_basedonarray() : currentpos{ 0 } {}
         void add(const element& e) { datas[currentpos++] = e; }
         size_t size() { return currentpos; }
     };
@@ -54,7 +56,6 @@ namespace ftw
             element* afterlastelem = ++lastelem;
             return afterlastelem;
         }
-
         void add(const element& e) { datas.emplace_back(e); }
         size_t size() { return datas.size(); }
     };

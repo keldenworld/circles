@@ -45,7 +45,6 @@ namespace ftw
         void zoomUpdate();
         void loop();
         void update();
-        //replace with the last element in the vector (witch should be hopefully already processed...)
         void deletePhysics(size_t iemElement);
     };
 

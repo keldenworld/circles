@@ -164,14 +164,6 @@
     <ClCompile Include="world.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="circle.htm">
-      <DeploymentContent>true</DeploymentContent>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <Image Include="dog-2785074_640.jpg" />
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="world.h" />
     <ClInclude Include="tools.h" />
   </ItemGroup>

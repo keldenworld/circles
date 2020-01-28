@@ -26,16 +26,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="circle.htm">
-      <Filter>Fichiers sources</Filter>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <Image Include="dog-2785074_640.jpg">
-      <Filter>Fichiers de ressources</Filter>
-    </Image>
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="tools.h">
       <Filter>Fichiers d%27en-tête</Filter>
     </ClInclude>

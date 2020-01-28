@@ -46,8 +46,7 @@ namespace ftw
 
     void world_basedonvector::draw(sf::RenderWindow& window)
     {
-        for (auto e : drawingPhysics)
-            window.draw(e);
+        for (auto e : drawingPhysics) window.draw(e);
     }
 
     void world_basedonvector::updateDraw(std::map<std::string, std::tuple<sf::Color, float>>& timers)
@@ -78,11 +77,7 @@ namespace ftw
     {
         if (zoom < 0.2f) zoom = 0.2f;
         for (auto& e : this->physics)
-        {
-            auto newr = e.shape.getRadius() * zoom;
-            e.zoomedShape.setRadius(newr);
-            newr = 0;
-        }
+            e.zoomedShape.setRadius(e.shape.getRadius() * zoom);
     }
     void world_basedonvector::loop()
     {
@@ -95,8 +90,7 @@ namespace ftw
         text2prt.setCharacterSize(21);
         text2prt.setFillColor(sf::Color::White);
         sf::Font font;
-        if (!font.loadFromFile("monofonto.ttf"))
-            return;
+        if (!font.loadFromFile("monofonto.ttf")) return;
         text2prt.setFont(font);
 
         std::map<std::string, std::tuple<sf::Color, float>> timers;
@@ -145,8 +139,7 @@ namespace ftw
             }
             {
                 ftw::timethat timet(timers, "log Rectangle - YELLOW", sf::Color::Yellow);
-                for (auto r : timet.to_rectangle())
-                    window.draw(r);
+                for (auto r : timet.to_rectangle()) window.draw(r);
             }
             {
                 ftw::timethat timet(timers, "log text - WHITE", sf::Color::White);
@@ -158,7 +151,8 @@ namespace ftw
                 {
                     ftw::timethat timet(timers, "log FPS - BLACK", sf::Color::Black);
                     myfps.update();
-                    tmpstr += "\nFPS (basics World Vector) : " + std::to_string(myfps.get()) + "\n";
+                    tmpstr += "\nFPS (basics World Vector) : " + 
+                        std::to_string(myfps.get()) + "\n";
                 }
                 {
                     auto LightPink = sf::Color(0xFF, 0xB6, 0xC1);
@@ -171,10 +165,8 @@ namespace ftw
                     window.draw(text2prt);
                 }
             }
-            {
-                ftw::timethat timet(timers, "Windows.Display - MAGENTA", sf::Color::Magenta);
-                window.display();
-            }
+            ftw::timethat timet(timers, "Windows.Display - MAGENTA", sf::Color::Magenta);
+            window.display();
         }
     }
     void world_basedonvector::update()
@@ -182,7 +174,7 @@ namespace ftw
         auto currentdt = std::chrono::system_clock::now();
         for (auto ii = physics.size(); ii > 0; ii--)
         {
-            int i = (int)ii - 1; // dirty, for deletePhysics algorithm
+            int i = (int)ii - 1; // dirty, linked to deletePhysics algorithm
             auto mass = physics[i].mass;
             auto dtm = static_cast<float>(std::chrono::duration_cast<std::chrono::milliseconds> (currentdt - physics[i].dt).count());
             float friction = physics[i].friction;
@@ -204,6 +196,7 @@ namespace ftw
                 currentPhysics[i] = sf::Vector2f(newx * zoom, newy * zoom);
         }
     }
+    //replace with the last element in the vector (witch should be hopefully already processed...)
     void world_basedonvector::deletePhysics(size_t iemElement)
     {
         if (currentPhysics.size() - 1 != iemElement)  //not the last one
@@ -216,6 +209,4 @@ namespace ftw
         drawingPhysics.pop_back();
         physics.pop_back();
     }
-
-
 }

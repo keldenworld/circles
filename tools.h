@@ -6,7 +6,7 @@ namespace ftw
     {
         sf::Clock clock;
         int counter{ 1 };
-        sf::Time frameTime{ clock.restart() };
+        sf::Time frameTime{ clock.restart() }; 
         int everyframe;
         float currentFT{ 0.0f };
     public:

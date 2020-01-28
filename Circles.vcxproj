@@ -159,7 +159,9 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Circles.cpp" />
+    <ClCompile Include="circles.cpp" />
+    <ClCompile Include="tools.cpp" />
+    <ClCompile Include="world.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="circle.htm">
@@ -170,7 +172,7 @@
     <Image Include="dog-2785074_640.jpg" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="circles.h" />
+    <ClInclude Include="world.h" />
     <ClInclude Include="tools.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

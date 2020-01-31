@@ -58,7 +58,7 @@ namespace ftw
             sf::Color c;
             float t;
             std::tie(c, t) = e.second;
-            auto shape = sf::RectangleShape(sf::Vector2f(t / 100'000, 20));
+            auto shape = sf::RectangleShape(sf::Vector2f(t / 100'000, 30));
             shape.setPosition(lastpos, 0);
             lastpos += t / 100'000;
             shape.setFillColor(c);
@@ -66,8 +66,14 @@ namespace ftw
         }
         auto shape_60fps = sf::RectangleShape(sf::Vector2f(16'666'666 / 100'000, 20));
         shape_60fps.setFillColor(sf::Color::Red);
-        shape_60fps.setPosition(0, 20);
+        shape_60fps.setPosition(0, 30);
         rectangles.emplace_back(shape_60fps);
+
+        auto debug = sf::RectangleShape(sf::Vector2f(2048, 10));
+        debug.setFillColor(sf::Color::Yellow);
+        debug.setPosition(0, 0);
+        rectangles.emplace_back(debug);
+
         return rectangles;
     }
 

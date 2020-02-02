@@ -1,7 +1,0 @@
-01/02/2020  0:03:17,53 
-Total Code 596 
-Test Code 0 
-FTW Code 596 
- 
-100 % of the Total code 
-14 % of target (4096) 

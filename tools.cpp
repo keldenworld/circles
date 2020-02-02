@@ -68,12 +68,7 @@ namespace ftw
         shape_60fps.setFillColor(sf::Color::Red);
         shape_60fps.setPosition(0, 30);
         rectangles.emplace_back(shape_60fps);
-
-        auto debug = sf::RectangleShape(sf::Vector2f(2048, 10));
-        debug.setFillColor(sf::Color::Yellow);
-        debug.setPosition(0, 0);
-        rectangles.emplace_back(debug);
-
+        
         return rectangles;
     }
 

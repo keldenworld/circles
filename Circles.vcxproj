@@ -163,10 +163,12 @@
     <ClCompile Include="circles.cpp" />
     <ClCompile Include="tools.cpp" />
     <ClCompile Include="world.cpp" />
+    <ClCompile Include="zone.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="world.h" />
     <ClInclude Include="tools.h" />
+    <ClInclude Include="zone.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

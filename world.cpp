@@ -1,4 +1,5 @@
 #include "world.h"
+#include "zone.h"
 #include "assert.h"
 
 namespace ftw
@@ -9,6 +10,7 @@ namespace ftw
         shape.setPointCount(MAXPoint);
         shape.setFillColor(sf::Color::Transparent);
         shape.setOutlineThickness(1);
+        auto currentSize = physics.size();
         for (int i = 0; i < MAXOBJ/10; i++)
         {
             shape.setPosition(
@@ -16,15 +18,15 @@ namespace ftw
                 static_cast<float>(rand() % MAXTerrain/2 + MAXTerrain / 4));
             auto radius = static_cast<float>(rand() % (64 + 3) - 3);
             shape.setRadius(radius);
-            shape.setOutlineColor(sf::Color(rand() % 255, rand() % 255, rand() % 255));
-            currentPhysics.emplace_back(physicsData(sf::Vector2f(
-                    shape.getPosition().x, 
-                    shape.getPosition().y), radius));
+            shape.setOutlineColor(sf::Color(rand() % 224 + 31, rand() % 224 + 31, rand() % 224 + 31));
             physics.emplace_back(data(shape,
                 sf::Vector2f(static_cast<float>(rand() % 512) - 256.0f, static_cast<float>(rand() % 512) - 256.0f),
                 sf::Vector2f(static_cast<float>(rand() % 32) - 16.0f, static_cast<float>(rand() % 32) - 16.0f),
                 static_cast<float>(rand() % 32),
                 static_cast<float>(rand() % 64)));
+            currentPhysics.emplace_back(physicsData(i + currentSize, sf::Vector2f(
+                shape.getPosition().x,
+                shape.getPosition().y), radius));
         }
         zoomUpdate();
     }
@@ -65,7 +67,6 @@ namespace ftw
         sf::Vector2f v2f;
         sf::CircleShape shape;
         size_t n = 0;
-        sf::Vector3f deltaPos2 = sf::Vector3f(deltaPos.x, deltaPos.y, 1);
         for (auto i = 0; i < physics.size(); i++)
         {
             {
@@ -209,11 +210,21 @@ namespace ftw
             {
                 auto DimGray = sf::Color(0x69, 0x69, 0x69);
                 ftw::timethat timet(timers, "Generate Zones - DIMGRAY", DimGray);
-                int idEngine = 0; 
-                zone headZone{ idEngine, currentPhysics };
+                int idEngine = 0;
+                std::vector<std::vector<size_t>> vCollisions;
+                zone headZone { idEngine, currentPhysics, vCollisions };
                 std::vector<std::tuple<std::string, float, float>> strzlog; //s,x,y
                 if (gridFlag)
                 {
+                    for (auto i = 0; i<vCollisions.size() ; i++)
+                        for (auto c : vCollisions[i])
+                        {
+                            sf::Vertex line[2];
+                            line[0].position = currentPhysics[i].position * zoomVal + deltaPos;
+                            line[1].position = currentPhysics[c].position * zoomVal + deltaPos;
+                            window.draw(line,2, sf::Lines);
+                        }
+
                     headZone.to_string(strzlog);
                     for (auto& e : strzlog)
                     {
@@ -227,18 +238,18 @@ namespace ftw
                     headZone.to_circle(circlesPerZone);
                     for (auto& e : circlesPerZone)
                     {
-                        e.setPosition(sf::Vector2f(
+                        e.setPosition(
                             e.getPosition().x * zoomVal + deltaPos.x, 
-                            e.getPosition().y * zoomVal + deltaPos.y));
+                            e.getPosition().y * zoomVal + deltaPos.y);
                         window.draw(e);
                     }
                     headZone.to_rectangle(zones);
                     for (const auto& e : zones)
                     {
                         auto zoomedShape = e;
-                        zoomedShape.setPosition(sf::Vector2f(
+                        zoomedShape.setPosition(
                             e.getPosition().x * zoomVal + deltaPos.x,
-                            e.getPosition().y * zoomVal + deltaPos.y));
+                            e.getPosition().y * zoomVal + deltaPos.y);
                         zoomedShape.setSize(sf::Vector2f(
                             e.getSize().x * zoomVal,
                             e.getSize().y * zoomVal));
@@ -257,6 +268,7 @@ namespace ftw
         for (auto ii = physics.size(); ii > 0; ii--)
         {
             int i = (int)ii - 1; // dirty, linked to deletePhysics algorithm
+            auto radius = physics[i].shape.getRadius();
             auto mass = physics[i].mass;
             auto dtm = static_cast<float>(std::chrono::duration_cast<std::chrono::milliseconds> (currentdt - physics[i].dt).count());
             float friction = physics[i].friction;
@@ -268,19 +280,21 @@ namespace ftw
             float t_setdtm = dtm / 1000.0f;
             float e_setdtm = exp(-friction / mass * t_setdtm);
 
-            auto equaDiff = [](float force, float friction, float dtm, float speed, float mass, float e_setdtm, float x) -> float
-            {return ((force / friction) * dtm + (force / friction - speed * 100) * mass / friction * (e_setdtm - 1) + x * 100) / 100; };
+            auto equaDiff = [](float force, float friction, float dtm, 
+                float speed, float mass, float e_setdtm, float x) -> float
+            {return ((force / friction) * dtm + 
+                (force / friction - speed * 100) * mass / friction * (e_setdtm - 1) + 
+                x * 100) / 100; };
             auto newx = equaDiff(force.x, friction, dtm, speed.x, mass, e_setdtm, x);
             auto newy = equaDiff(force.y, friction, dtm, speed.y, mass, e_setdtm, y);
             bool isOutOfTerrain;
-            if (isOutOfTerrain = newx<0 || newx>MAXTerrain || newy<0 || newy>MAXTerrain)
+            if (isOutOfTerrain = newx+radius<0 || newx+radius>MAXTerrain || newy+radius<0 || newy + radius>MAXTerrain)
                 deletePhysics(i);
             else 
-            {
                 currentPhysics[i].position = sf::Vector2f(newx, newy);
-                assert(newx > 0);
-            }
         }
+        for (auto i = 0; i < physics.size(); i++) //Debug
+            assert(i == currentPhysics[i].currentId);
     }
     //replace with the last element in the vector (witch should be hopefully already processed...)
     void world_basedonvector::deletePhysics(size_t iemElement)
@@ -288,6 +302,7 @@ namespace ftw
         if (currentPhysics.size() - 1 != iemElement)  //not the last one
         {
             currentPhysics[iemElement] = currentPhysics.back();
+            currentPhysics[iemElement].currentId = iemElement;
             physics[iemElement] = physics.back();
         }
         currentPhysics.pop_back();

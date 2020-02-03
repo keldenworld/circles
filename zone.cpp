@@ -9,13 +9,25 @@ namespace ftw
         : min{ min }, max{ max }, idEngine{ idEngine }, vCollisions{vCollisions}
     {
         emplace_back(vDatas);
+        auto asCollided = [](physicsData & c1, physicsData& c2)-> bool {
+            auto x1 = c1.position.x + c1.radius;
+            auto y1 = c1.position.y + c1.radius;
+            auto x2 = c2.position.x + c2.radius;
+            auto y2 = c2.position.y + c2.radius;
+            auto dx = x2 - x1;
+            auto dy = y2 - y1;
+            auto distance = dx* dx + dy * dy; //without sqrt
+            auto addedRadius = (c1.radius + c2.radius)* (c1.radius + c2.radius); // :p
+            return distance<=addedRadius; 
+        };
         if (childs.size() == 0)
             for (auto i = 0; i < data.size(); i++)
                 for (auto& e : data)
                 {
                     while (vCollisions.size() < data[i].currentId + 1)
                         vCollisions.emplace_back(std::vector<size_t>());
-                    vCollisions[data[i].currentId].emplace_back(e.currentId);
+                    if (e.currentId != data[i].currentId && asCollided(data[i], e))
+                        vCollisions[data[i].currentId].emplace_back(e.currentId);
                 }
     }
 

@@ -1,6 +1,6 @@
 @echo off
 REM just count every files
-set /a targetLineN = 8192/2
+set /a targetLineN = 1024
 
 set /a ftwNumLines = 0
 set /a ftwNumLinesTest = 0

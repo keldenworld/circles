@@ -14,15 +14,8 @@ namespace ftw
             sf::CircleShape shape;
             std::chrono::time_point<std::chrono::system_clock>
                 dt{ std::chrono::system_clock::now() };
-            sf::Vector2f speed;
-            sf::Vector2f force;
-            sf::CircleShape zoomedShape;
-            float friction;
-            float mass;
-            data(sf::CircleShape shape, sf::Vector2f speed, sf::Vector2f force, 
-                float friction, float mass) :
-                shape{ shape }, speed{ speed }, force{ force }, 
-                friction{ friction }, mass{ mass }, zoomedShape{ shape } {}
+            data(sf::CircleShape shape) :
+                shape{ shape } {}
         };
         std::vector<data> physics;
         std::vector<physicsData> currentPhysics;
@@ -42,6 +35,11 @@ namespace ftw
         void zoomDown() { zoomVal -= 0.2f; zoomUpdate(); }
         void update();
         void deletePhysics(size_t iemElement);
+        void updateCollisions(std::vector<std::vector<size_t>>& vCollisions)
+        {
+            for (auto& e : vCollisions)
+                ;
+        }
     public:
         void loop();
     };

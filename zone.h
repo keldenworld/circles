@@ -6,8 +6,14 @@ namespace ftw
         size_t currentId;
         sf::Vector2f position;
         float radius;
-        physicsData(size_t currentId, sf::Vector2f position, float radius) :
-            position{ position }, radius{ radius }, currentId{ currentId }{}
+        sf::Vector2f speed;
+        sf::Vector2f force;
+        float friction;
+        float mass;
+        physicsData(size_t currentId, sf::Vector2f position, float radius, 
+            sf::Vector2f speed, sf::Vector2f force, float friction, float mass) :
+            position{ position }, radius{ radius }, currentId{ currentId },
+            speed{ speed }, force{ force }, friction{ friction }, mass{ mass } {}
     };
 
     class zone {

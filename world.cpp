@@ -19,14 +19,14 @@ namespace ftw
             auto radius = static_cast<float>(rand() % (64 + 3) - 3);
             shape.setRadius(radius);
             shape.setOutlineColor(sf::Color(rand() % 224 + 31, rand() % 224 + 31, rand() % 224 + 31));
-            physics.emplace_back(data(shape,
-                sf::Vector2f(static_cast<float>(rand() % 512) - 256.0f, static_cast<float>(rand() % 512) - 256.0f),
-                sf::Vector2f(static_cast<float>(rand() % 32) - 16.0f, static_cast<float>(rand() % 32) - 16.0f),
-                static_cast<float>(rand() % 32),
-                static_cast<float>(rand() % 64)));
+            physics.emplace_back(data(shape));
             currentPhysics.emplace_back(physicsData(i + currentSize, sf::Vector2f(
                 shape.getPosition().x,
-                shape.getPosition().y), radius));
+                shape.getPosition().y), radius,
+                sf::Vector2f(static_cast<float>(rand() % 512) - 256, static_cast<float>(rand() % 512) - 256),
+                sf::Vector2f(static_cast<float>(rand() % 32) - 16, static_cast<float>(rand() % 32) - 16),
+                static_cast<float>(rand() % 32)/10000,
+                static_cast<float>(rand() % 64)));
         }
         zoomUpdate();
     }
@@ -78,7 +78,7 @@ namespace ftw
             if (bool isVisible = (v2f.x < MAXScreen_X&& v2f.y < MAXScreen_Y))
             {
                 ftw::timethat timet(timers, "update draw [insert into drawingPhysics] - DEEPSKYBLUE", DeepSkyblue);
-                shape = physics[i].zoomedShape;
+                shape = physics[i].shape;
                 shape.setPosition(v2f);
                 if (n < drawingPhysics.size())
                     drawingPhysics[n] = shape;
@@ -97,8 +97,8 @@ namespace ftw
     void world_basedonvector::zoomUpdate()
     {
         if (zoomVal < 0.2f) zoomVal = 0.2f;
-        for (auto& e : this->physics)
-            e.zoomedShape.setRadius(e.shape.getRadius() * zoomVal);
+        for (auto i = 0 ; i< physics.size() ; i++)
+            physics[i].shape.setRadius(currentPhysics[i].radius * zoomVal);
     }
     void world_basedonvector::loop()
     {
@@ -220,11 +220,19 @@ namespace ftw
                         for (auto c : vCollisions[i])
                         {
                             sf::Vertex line[2];
-                            line[0].position = currentPhysics[i].position * zoomVal + deltaPos;
-                            line[1].position = currentPhysics[c].position * zoomVal + deltaPos;
+                            auto deltaRadius_i = sf::Vector2f(
+                                currentPhysics[i].radius,
+                                currentPhysics[i].radius);
+                            auto deltaRadius_c = sf::Vector2f(
+                                currentPhysics[c].radius,
+                                currentPhysics[c].radius);
+                            line[0].position = (currentPhysics[i].position + 
+                                deltaRadius_i) * zoomVal + deltaPos;
+                            line[1].position = (currentPhysics[c].position + 
+                                deltaRadius_c) * zoomVal + deltaPos;
                             window.draw(line,2, sf::Lines);
                         }
-
+                    updateCollisions(vCollisions);
                     headZone.to_string(strzlog);
                     for (auto& e : strzlog)
                     {
@@ -268,30 +276,50 @@ namespace ftw
         for (auto ii = physics.size(); ii > 0; ii--)
         {
             int i = (int)ii - 1; // dirty, linked to deletePhysics algorithm
-            auto radius = physics[i].shape.getRadius();
-            auto mass = physics[i].mass;
-            auto dtm = static_cast<float>(std::chrono::duration_cast<std::chrono::milliseconds> (currentdt - physics[i].dt).count());
-            float friction = physics[i].friction;
+            auto radius = currentPhysics[i].radius;
+            auto mass = currentPhysics[i].mass;
+            auto dtm = static_cast<float>(
+                std::chrono::duration_cast<std::chrono::milliseconds> (
+                    currentdt - physics[i].dt).count());
+            float friction = currentPhysics[i].friction;
             if (friction == 0) friction = 0.000001f;
-            auto force = physics[i].force;
-            auto speed = physics[i].speed;
-            float x = physics[i].shape.getPosition().x;
-            float y = physics[i].shape.getPosition().y;
-            float t_setdtm = dtm / 1000.0f;
-            float e_setdtm = exp(-friction / mass * t_setdtm);
+            auto force = currentPhysics[i].force;
+            auto speed = currentPhysics[i].speed;
+            auto position = physics[i].shape.getPosition();
 
-            auto equaDiff = [](float force, float friction, float dtm, 
-                float speed, float mass, float e_setdtm, float x) -> float
-            {return ((force / friction) * dtm + 
-                (force / friction - speed * 100) * mass / friction * (e_setdtm - 1) + 
-                x * 100) / 100; };
-            auto newx = equaDiff(force.x, friction, dtm, speed.x, mass, e_setdtm, x);
-            auto newy = equaDiff(force.y, friction, dtm, speed.y, mass, e_setdtm, y);
-            bool isOutOfTerrain;
-            if (isOutOfTerrain = newx+radius<0 || newx+radius>MAXTerrain || newy+radius<0 || newy + radius>MAXTerrain)
+            auto equaDiff = [](sf::Vector2f& position, sf::Vector2f& speed,
+                sf::Vector2f force, float friction, float dtm, float mass)
+            {
+                if (position.x != 0 || position.y != 0 ||
+                    speed.x != 0 || speed.y != 0 )
+                {
+                    float t_setdtm = dtm / 1000.0f;
+                    float e_setdtm = exp(-friction / mass * t_setdtm);
+                    auto ed = [&](float& position, float& speed, float force)
+                    {
+                        auto p = position * 1000;
+                        auto ff = force / friction;
+                        p = (ff * dtm + (ff - speed * 100) *
+                            mass / friction * (e_setdtm - 1) + p * 100) / 100;
+                        position = p / 1000;
+                        speed = (ff + (speed * 100 - ff) * e_setdtm) / 100;
+                    };
+                    ed(position.x, speed.x, force.x);
+                    ed(position.y, speed.y, force.y);
+                }
+            };
+
+            equaDiff(position, speed, force, friction, dtm, mass);
+
+            if (bool isOutOfTerrain = 
+                position.x+radius<0 || position.x + radius>MAXTerrain || 
+                position.y+radius<0 || position.y + radius>MAXTerrain)
                 deletePhysics(i);
-            else 
-                currentPhysics[i].position = sf::Vector2f(newx, newy);
+            else
+            {
+                currentPhysics[i].position = position;
+                currentPhysics[i].speed = speed;
+            }
         }
         for (auto i = 0; i < physics.size(); i++) //Debug
             assert(i == currentPhysics[i].currentId);

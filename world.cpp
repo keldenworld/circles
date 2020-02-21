@@ -4,32 +4,6 @@
 
 namespace ftw
 {
-    void world_basedonvector::initload()
-    {
-        sf::CircleShape shape(100);
-        shape.setPointCount(MAXPoint);
-        shape.setFillColor(sf::Color::Transparent);
-        shape.setOutlineThickness(1);
-        auto currentSize = physics.size();
-        for (int i = 0; i < MAXOBJ/10; i++)
-        {
-            shape.setPosition(
-                static_cast<float>(rand() % MAXTerrain/2 + MAXTerrain / 4),
-                static_cast<float>(rand() % MAXTerrain/2 + MAXTerrain / 4));
-            auto radius = static_cast<float>(rand() % (64 + 3) - 3);
-            shape.setRadius(radius);
-            shape.setOutlineColor(sf::Color(rand() % 224 + 31, rand() % 224 + 31, rand() % 224 + 31));
-            physics.emplace_back(data(shape));
-            currentPhysics.emplace_back(physicsData(i + currentSize, sf::Vector2f(
-                shape.getPosition().x,
-                shape.getPosition().y), radius,
-                sf::Vector2f(static_cast<float>(rand() % 512) - 256, static_cast<float>(rand() % 512) - 256),
-                sf::Vector2f(static_cast<float>(rand() % 32) - 16, static_cast<float>(rand() % 32) - 16),
-                static_cast<float>(rand() % 32)/10000,
-                static_cast<float>(rand() % 64)));
-        }
-        zoomUpdate();
-    }
     void world_basedonvector::log(std::string& txt)
     {
         auto elem = physics.size();
@@ -39,6 +13,7 @@ namespace ftw
             + std::to_string(static_cast<int>(deltaPos.x)) + "/"
             + std::to_string(static_cast<int>(deltaPos.y)) + "\n" +
             "Zoom : " + std::to_string(zoomVal) + "\n" +
+            "CollisionFlag : " + (collisionFlag ? "TRUE" : "FALSE") + "\n" +
             "Drawned Elements : " + std::to_string(drawingPhysics.size()) + "\n" +
             "Density : " + std::to_string(density) + "\n";
     }
@@ -117,7 +92,6 @@ namespace ftw
         zoneText2prt.setFont(font);
         zoneText2prt.setFillColor(sf::Color::Green);
 
-        std::vector<sf::RectangleShape> zones;
         std::map<std::string, std::tuple<sf::Color, float>> timers;
         auto myfps = ftw::FPS();
         while (window.isOpen())
@@ -125,12 +99,12 @@ namespace ftw
             tmpstr = "";
             {
                 ftw::timethat timet(timers, "update physics [equadiff] - CYAN", sf::Color::Cyan);
-                this->update();
+                this->updatePhysics();
             }
             {
                 ftw::timethat timet(timers, "event loop + window.clear - GREEN", sf::Color::Green);
                 sf::Event event;
-                tmpstr += "Commands : +/-, up/down, l, c, g, space, esc \n";
+                tmpstr += "Commands : +/-, up/down, [L]og, [O]bject, [G]rid, [Collision], space, esc \n";
                 while (window.pollEvent(event))
                 {
                     if (event.type == sf::Event::Closed)
@@ -154,17 +128,21 @@ namespace ftw
                             zoomUp();
                         else if (event.key.code == sf::Keyboard::L)
                             logFlag = !logFlag;
-                        else if (event.key.code == sf::Keyboard::C)
-                            circleFlag = !circleFlag;
+                        else if (event.key.code == sf::Keyboard::O)
+                            objectFlag = !objectFlag;
                         else if (event.key.code == sf::Keyboard::G)
                             gridFlag = !gridFlag;
+                        else if (event.key.code == sf::Keyboard::C)
+                            collisionFlag = !collisionFlag;
+                        else if (event.key.code == sf::Keyboard::Numpad1)
+                            initTest1();
                 }
                 window.clear();
             }
             updateDraw(timers);
             {
                 ftw::timethat timet(timers, "windows.draw circles - BLUE", sf::Color::Blue);
-                if (circleFlag) this->draw(window);
+                if (objectFlag) this->draw(window);
             }
             {
                 ftw::timethat timet(timers, "log Rectangle - YELLOW", sf::Color::Yellow);
@@ -213,6 +191,8 @@ namespace ftw
                 int idEngine = 0;
                 std::vector<std::vector<size_t>> vCollisions;
                 zone headZone { idEngine, currentPhysics, vCollisions };
+                if (collisionFlag)
+                    updateCollisions(vCollisions);
                 std::vector<std::tuple<std::string, float, float>> strzlog; //s,x,y
                 if (gridFlag)
                 {
@@ -232,7 +212,6 @@ namespace ftw
                                 deltaRadius_c) * zoomVal + deltaPos;
                             window.draw(line,2, sf::Lines);
                         }
-                    updateCollisions(vCollisions);
                     headZone.to_string(strzlog);
                     for (auto& e : strzlog)
                     {
@@ -251,6 +230,7 @@ namespace ftw
                             e.getPosition().y * zoomVal + deltaPos.y);
                         window.draw(e);
                     }
+                    std::vector<sf::RectangleShape> zones;
                     headZone.to_rectangle(zones);
                     for (const auto& e : zones)
                     {
@@ -264,75 +244,91 @@ namespace ftw
                         window.draw(zoomedShape);
                     }
                 }
-                zones.clear();
             }
             ftw::timethat timet(timers, "Windows.Display - MAGENTA", sf::Color::Magenta);
             window.display();
         }
     }
-    void world_basedonvector::update()
+    void world_basedonvector::updatePhysics()
     {
         auto currentdt = std::chrono::system_clock::now();
-        for (auto ii = physics.size(); ii > 0; ii--)
+        // linked to deletePhysics algorithm : should be done backward
+        for (int i = (int)physics.size()-1; i >= 0; i--)
         {
-            int i = (int)ii - 1; // dirty, linked to deletePhysics algorithm
             auto radius = currentPhysics[i].radius;
             auto mass = currentPhysics[i].mass;
             auto dtm = static_cast<float>(
                 std::chrono::duration_cast<std::chrono::milliseconds> (
                     currentdt - physics[i].dt).count());
             float friction = currentPhysics[i].friction;
-            if (friction == 0) friction = 0.000001f;
             auto force = currentPhysics[i].force;
             auto speed = currentPhysics[i].speed;
             auto position = physics[i].shape.getPosition();
-
-            auto equaDiff = [](sf::Vector2f& position, sf::Vector2f& speed,
-                sf::Vector2f force, float friction, float dtm, float mass)
+            
+            sf::Vector2f addedSpd;
+            if (deltaSpeeds.size() > i)
             {
-                if (position.x != 0 || position.y != 0 ||
-                    speed.x != 0 || speed.y != 0 )
-                {
-                    float t_setdtm = dtm / 1000.0f;
-                    float e_setdtm = exp(-friction / mass * t_setdtm);
-                    auto ed = [&](float& position, float& speed, float force)
-                    {
-                        auto p = position * 1000;
-                        auto ff = force / friction;
-                        p = (ff * dtm + (ff - speed * 100) *
-                            mass / friction * (e_setdtm - 1) + p * 100) / 100;
-                        position = p / 1000;
-                        speed = (ff + (speed * 100 - ff) * e_setdtm) / 100;
-                    };
-                    ed(position.x, speed.x, force.x);
-                    ed(position.y, speed.y, force.y);
-                }
-            };
+                float sz = (float)deltaSpeeds[i].size();
+                for (auto& e : deltaSpeeds[i])
+                    addedSpd += e;
+                if (sz > 0)
+                    addedSpd /= sz;
+                //assert(!isnan(addedSpd.x || addedSpd.y));
+                //assert(!isinf(addedSpd.x || addedSpd.y));
+            }
 
-            equaDiff(position, speed, force, friction, dtm, mass);
-
-            if (bool isOutOfTerrain = 
-                position.x+radius<0 || position.x + radius>MAXTerrain || 
-                position.y+radius<0 || position.y + radius>MAXTerrain)
+            if (bool isReadyForEquaDiff = 
+                speed.x != 0 || speed.y != 0 )
+            {
+                auto oldspd = speed;
+                speed += addedSpd;
+                position *= 1000.0f;
+                auto ff = force / friction;
+                float e_setdtm = exp(-friction / mass * dtm / 1000.0f);
+                position = (ff * dtm + (ff - speed * 1000.0f) * mass / friction *
+                    (e_setdtm - 1) + position * 1000.0f) / 1000.0f;
+                speed = (ff + (speed * 1000.0f - ff) * e_setdtm) / 1000.0f;
+                position /= 1000.0f;
+                //assert(speed.x<10'000);
+                assert(!isnan(speed.x)&& !isinf(speed.x));
+                assert(!isnan(position.x));
+            }
+            deltaSpeeds[i].clear();
+            if (bool isOutOfTerrain =
+                position.x + radius<0 || position.x + radius>MAXTerrain ||
+                position.y + radius<0 || position.y + radius>MAXTerrain)
                 deletePhysics(i);
-            else
+            else 
             {
+                assert(!isnan(position.x));
                 currentPhysics[i].position = position;
+                assert(!isnan(speed.x));
                 currentPhysics[i].speed = speed;
             }
         }
         for (auto i = 0; i < physics.size(); i++) //Debug
+        {
             assert(i == currentPhysics[i].currentId);
+            auto position = currentPhysics[i].position;
+            auto radius = currentPhysics[i].radius;
+            bool isOutOfTerrain =
+                position.x + radius<0 || position.x + radius>MAXTerrain ||
+                position.y + radius<0 || position.y + radius>MAXTerrain;
+            assert(!isOutOfTerrain);
+            assert(!isnan(position.x));
+        }
     }
     //replace with the last element in the vector (witch should be hopefully already processed...)
-    void world_basedonvector::deletePhysics(size_t iemElement)
+    void inline world_basedonvector::deletePhysics(size_t iemElement)
     {
         if (currentPhysics.size() - 1 != iemElement)  //not the last one
         {
+            if (iemElement == 44) std::cout << "DEL";
             currentPhysics[iemElement] = currentPhysics.back();
             currentPhysics[iemElement].currentId = iemElement;
             physics[iemElement] = physics.back();
         }
+        deltaSpeeds.pop_back();
         currentPhysics.pop_back();
         physics.pop_back();
     }

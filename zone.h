@@ -13,7 +13,9 @@ namespace ftw
         physicsData(size_t currentId, sf::Vector2f position, float radius, 
             sf::Vector2f speed, sf::Vector2f force, float friction, float mass) :
             position{ position }, radius{ radius }, currentId{ currentId },
-            speed{ speed }, force{ force }, friction{ friction }, mass{ mass } {}
+            speed{ speed }, force{ force }, 
+            friction{ (friction <= 0) ? 10.0f : friction },
+            mass{ mass <= 0 ? 0,001 : mass } {}
     };
 
     class zone {

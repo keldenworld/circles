@@ -1,7 +1,0 @@
-21/02/2020 11:47:47,56 
-Total Code 806 
-Test Code 0 
-FTW Code 806 
- 
-100 % of the Total code 
-78 % of target (1024) 

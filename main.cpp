@@ -5,7 +5,8 @@
 
 int main()
 {
-    auto world = ftw::world_basedonvector();
+    auto world = ftw::world();
+    world.box2DGround();
+    world.box2DSquare();
     world.loop();
-
 }

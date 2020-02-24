@@ -4,7 +4,73 @@
 
 namespace ftw
 {
-    void world_basedonvector::log(std::string& txt)
+    void world::box2DGround()
+    {
+        b2BodyDef groundBodyDef;
+        groundBodyDef.position.Set(0.0f, -10.0f);
+        b2Body* groundBody = b2World.CreateBody(&groundBodyDef);
+        b2PolygonShape groundBox;
+        groundBox.SetAsBox(50.0f, 10.0f);
+        groundBody->CreateFixture(&groundBox, 0.0f);
+    }
+    void world::box2DPyramid()
+    {
+        float a = 0.5f;
+        b2PolygonShape shape;
+        shape.SetAsBox(a, a);
+
+        b2Vec2 x(-7.0f, 0.75f);
+        b2Vec2 y;
+        b2Vec2 deltaX(0.5625f, 1.25f);
+        b2Vec2 deltaY(1.125f, 0.0f);
+
+        for (int32 i = 0; i < 20; ++i)
+        {
+            y = x;
+
+            for (int32 j = i; j < 20; ++j)
+            {
+                b2BodyDef bd;
+                bd.type = b2_dynamicBody;
+                bd.position = y;
+                b2Body* body = b2World.CreateBody(&bd);
+                body->CreateFixture(&shape, 5.0f);
+
+                y += deltaY;
+            }
+
+            x += deltaX;
+        }
+    }
+
+    void world::box2DSquare()
+    {
+        b2BodyDef bodyDef;
+        bodyDef.type = b2_dynamicBody;
+        bodyDef.position.Set(0.0f, 4.0f);
+        vBodies.emplace_back(b2World.CreateBody(&bodyDef));
+        b2PolygonShape dynamicBox;
+        dynamicBox.SetAsBox(1.0f, 1.0f);
+        b2FixtureDef fixtureDef;
+        fixtureDef.shape = &dynamicBox;
+        fixtureDef.density = 1.0f;
+        fixtureDef.friction = 0.3f;
+        vBodies.back()->CreateFixture(&fixtureDef);
+        float timeStep = 1.0f / 60.0f;
+        int32 velocityIterations = 6;
+        int32 positionIterations = 2;
+        for (int32 i = 0; i < 60; ++i)
+        {
+            b2World.Step(timeStep, velocityIterations, positionIterations);
+            for (auto &e : vBodies)
+            {
+                b2Vec2 position = e->GetPosition();
+                float angle = e->GetAngle();
+                std::cout << position.x << " / " << position.y << " / " << angle;
+            }
+        }
+    }
+    void world::log(std::string& txt)
     {
         auto elem = physics.size();
         auto density = (float)elem / (float)MAXTerrain;
@@ -17,7 +83,7 @@ namespace ftw
             "Drawned Elements : " + std::to_string(drawingPhysics.size()) + "\n" +
             "Density : " + std::to_string(density) + "\n";
     }
-    void world_basedonvector::setDeltaPos(int x, int y)
+    void world::setDeltaPos(int x, int y)
     {
         deltaPos.x += x;
         deltaPos.y += y;
@@ -29,30 +95,28 @@ namespace ftw
         if (deltaPos.y < -limitY) deltaPos.y = -limitY;
     }
 
-    void world_basedonvector::draw(sf::RenderWindow& window) 
+    void world::draw(sf::RenderWindow& window) 
     {
         for (const auto e : drawingPhysics)
             window.draw(e);
     }
 
-    void world_basedonvector::updateDraw(std::map<std::string, std::tuple<sf::Color, float>>& timers)
+    void world::updateDraw(std::map<std::string, std::tuple<std::string, sf::Color, float>>& timers)
     {
-        auto Orange = sf::Color(0xFF, 0xA5, 0x00);
-        auto DeepSkyblue = sf::Color(0x00, 0xBF, 0xFF);
         sf::Vector2f v2f;
         sf::CircleShape shape;
         size_t n = 0;
         for (auto i = 0; i < physics.size(); i++)
         {
             {
-                ftw::timethat timet(timers, "update draw [compute position] - ORANGE", Orange);
+                ftw::timethat timet(timers, "update draw [compute position]");
                 v2f = this->currentPhysics[i].position;
                 v2f *= zoomVal;
                 v2f += deltaPos;
             }
             if (bool isVisible = (v2f.x < MAXScreen_X&& v2f.y < MAXScreen_Y))
             {
-                ftw::timethat timet(timers, "update draw [insert into drawingPhysics] - DEEPSKYBLUE", DeepSkyblue);
+                ftw::timethat timet(timers, "update draw [insert into drawingPhysics]");
                 shape = physics[i].shape;
                 shape.setPosition(v2f);
                 if (n < drawingPhysics.size())
@@ -63,19 +127,69 @@ namespace ftw
             }
         }
         {
-            auto DarkViolet = sf::Color(0x94, 0x00, 0xD3);
-            ftw::timethat timet(timers, "update draw [clean drawing vector] - DARKVIOLET", DarkViolet);
+            ftw::timethat timet(timers, "update draw [clean drawing vector]");
             if (bool containOldDataAtTheEndOfDrawingVector = (n != drawingPhysics.size()))
                 drawingPhysics.erase(drawingPhysics.begin() + n, drawingPhysics.end());
         }
     }
-    void world_basedonvector::zoomUpdate()
+    void world::zoomUpdate()
     {
         if (zoomVal < 0.2f) zoomVal = 0.2f;
         for (auto i = 0 ; i< physics.size() ; i++)
             physics[i].shape.setRadius(currentPhysics[i].radius * zoomVal);
     }
-    void world_basedonvector::loop()
+    void world::initload()
+    {
+        sf::CircleShape shape(100);
+        shape.setPointCount(MAXPoint);
+        shape.setFillColor(sf::Color::Transparent);
+        shape.setOutlineThickness(1);
+        auto currentSize = physics.size();
+        for (int i = 0; i < MAXOBJ / 10; i++)
+            //sf::CircleShape& shape, sf::Vector2f position,
+            //float radius, sf::Vector2f speed, sf::Vector2f force, float mass
+            setCircle(shape,
+                { static_cast<float>(rand() % MAXTerrain / 2 + MAXTerrain / 4),
+                static_cast<float>(rand() % MAXTerrain / 2 + MAXTerrain / 4) },
+                static_cast<float>(rand() % (61 + 3)),
+                { static_cast<float>(rand() % 2000) - 1000,//speed
+                static_cast<float>(rand() % 2000) - 1000 },
+                {},//{ static_cast<float>(rand() % 1'000) - 500, //force
+                   //static_cast<float>(rand() % 1'000) - 500 }, 
+                static_cast<float>(rand() % 500) //mass
+            );
+        zoomUpdate();
+    }
+    void world::setCircle(sf::CircleShape& shape, sf::Vector2f position, float radius, sf::Vector2f speed, sf::Vector2f force, float mass, sf::Color col) {
+        shape.setPosition(position);
+        shape.setRadius(radius);
+        shape.setOutlineColor(col);
+        auto currentSize = physics.size();
+        physics.emplace_back(data(shape));
+        currentPhysics.emplace_back(physicsData(
+            currentSize,
+            sf::Vector2f(
+                shape.getPosition().x,          //pos
+                shape.getPosition().y),
+            radius,                         //radius - 1
+            speed * 1000.0f,
+            force,
+            static_cast<float>(rand() % 32) / 10'000,   //friction
+            mass));         //mass - 500
+        deltaSpeeds.emplace_back(std::vector<sf::Vector2f>());
+    }
+    void world::initTest1()
+    {
+        sf::CircleShape shape(100);
+        shape.setPointCount(MAXPoint);
+        shape.setFillColor(sf::Color::Transparent);
+        shape.setOutlineThickness(1);
+        setCircle(shape, { 100,100 }, 100, { 100,0 }, { 100,0 }, 10);
+        setCircle(shape, { 500,100 }, 100, { 0,0 }, { 0,0 }, 10);
+        setCircle(shape, { 800,100 }, 100, { 0,0 }, { 0,0 }, 10);
+        zoomUpdate();
+    }
+    void world::loop()
     {
         sf::RenderWindow window(sf::VideoMode(MAXScreen_X, MAXScreen_Y), "Hello Kelden World with SFML!");
         window.setVerticalSyncEnabled(false);
@@ -92,17 +206,17 @@ namespace ftw
         zoneText2prt.setFont(font);
         zoneText2prt.setFillColor(sf::Color::Green);
 
-        std::map<std::string, std::tuple<sf::Color, float>> timers;
+        std::map<std::string, std::tuple<std::string, sf::Color, float>> timers;
         auto myfps = ftw::FPS();
         while (window.isOpen())
         {
             tmpstr = "";
             {
-                ftw::timethat timet(timers, "update physics [equadiff] - CYAN", sf::Color::Cyan);
+                ftw::timethat timet(timers, "update physics [equadiff]");
                 this->updatePhysics();
             }
             {
-                ftw::timethat timet(timers, "event loop + window.clear - GREEN", sf::Color::Green);
+                ftw::timethat timet(timers, "event loop + window.clear");
                 sf::Event event;
                 tmpstr += "Commands : +/-, up/down, [L]og, [O]bject, [G]rid, [Collision], space, esc \n";
                 while (window.pollEvent(event))
@@ -123,9 +237,9 @@ namespace ftw
                         else if (event.key.code == sf::Keyboard::Left)
                             setDeltaPos(30, 0);
                         else if (event.key.code == sf::Keyboard::Subtract)
-                            zoomDown();
+                            {zoomVal -= 0.2f; zoomUpdate();}
                         else if (event.key.code == sf::Keyboard::Add)
-                            zoomUp();
+                            {zoomVal += 0.2f; zoomUpdate();}
                         else if (event.key.code == sf::Keyboard::L)
                             logFlag = !logFlag;
                         else if (event.key.code == sf::Keyboard::O)
@@ -141,11 +255,11 @@ namespace ftw
             }
             updateDraw(timers);
             {
-                ftw::timethat timet(timers, "windows.draw circles - BLUE", sf::Color::Blue);
+                ftw::timethat timet(timers, "windows.draw circles");
                 if (objectFlag) this->draw(window);
             }
             {
-                ftw::timethat timet(timers, "log Rectangle - YELLOW", sf::Color::Yellow);
+                ftw::timethat timet(timers, "log Rectangle");
                 for (auto &r : timet.to_rectangle()) 
                 {
                     auto zoomedShape = r;
@@ -160,14 +274,14 @@ namespace ftw
                 }
             }
             {
-                ftw::timethat timet(timers, "log text - WHITE", sf::Color::White);
+                ftw::timethat timet(timers, "log text");
                 log(tmpstr);
                 tmpstr += timet.to_string();
             }
             if (logFlag)
             {
                 {
-                    ftw::timethat timet(timers, "log FPS - BLACK", sf::Color::Black);
+                    ftw::timethat timet(timers, "log FPS");
                     myfps.update();
                     auto fpsval = myfps.get();
                     tmpstr += "\nFPS (basics World Vector) : " + 
@@ -175,19 +289,16 @@ namespace ftw
                     text2prt.setFillColor((fpsval > 60 ? sf::Color::Green : sf::Color::White));
                 }
                 {
-                    auto LightPink = sf::Color(0xFF, 0xB6, 0xC1);
-                    ftw::timethat timet(timers, "prepare text log - LIGHTPINK", LightPink);
+                    ftw::timethat timet(timers, "prepare text log");
                     text2prt.setString("\n\n" + tmpstr);
                 }
                 {
-                    auto Purple = sf::Color(0x80, 0x00, 0x80);
-                    ftw::timethat timet(timers, "print text log - PURPLE", Purple);
+                    ftw::timethat timet(timers, "print text log");
                     window.draw(text2prt);
                 }
             }
             {
-                auto DimGray = sf::Color(0x69, 0x69, 0x69);
-                ftw::timethat timet(timers, "Generate Zones - DIMGRAY", DimGray);
+                ftw::timethat timet(timers, "Generate Zones");
                 int idEngine = 0;
                 std::vector<std::vector<size_t>> vCollisions;
                 zone headZone { idEngine, currentPhysics, vCollisions };
@@ -245,11 +356,11 @@ namespace ftw
                     }
                 }
             }
-            ftw::timethat timet(timers, "Windows.Display - MAGENTA", sf::Color::Magenta);
+            ftw::timethat timet(timers, "Windows.Display");
             window.display();
         }
     }
-    void world_basedonvector::updatePhysics()
+    void world::updatePhysics()
     {
         auto currentdt = std::chrono::system_clock::now();
         // linked to deletePhysics algorithm : should be done backward
@@ -319,11 +430,11 @@ namespace ftw
         }
     }
     //replace with the last element in the vector (witch should be hopefully already processed...)
-    void inline world_basedonvector::deletePhysics(size_t iemElement)
+    void world::deletePhysics(size_t iemElement)
     {
         if (currentPhysics.size() - 1 != iemElement)  //not the last one
         {
-            if (iemElement == 44) std::cout << "DEL";
+            //if (iemElement == 44) std::cout << "DEL";
             currentPhysics[iemElement] = currentPhysics.back();
             currentPhysics[iemElement].currentId = iemElement;
             physics[iemElement] = physics.back();
@@ -331,5 +442,80 @@ namespace ftw
         deltaSpeeds.pop_back();
         currentPhysics.pop_back();
         physics.pop_back();
+    }
+    inline void world::updateCollisions(std::vector<std::vector<size_t>>& vCollisions)
+    {
+        auto capSpeed = [](sf::Vector2f& spd1, sf::Vector2f& spd2)
+        {
+            auto speed =
+                sqrt(spd1.x * spd1.x + spd1.y * spd1.y) +
+                sqrt(spd2.x * spd2.x + spd2.y * spd2.y);
+            auto oldsp1 = spd1;
+            auto oldsp2 = spd2;
+            auto localspeed1 = spd1.x * spd1.x + spd1.y * spd1.y;
+            if (localspeed1 > speed)
+                spd1 *= sqrt(speed * speed / localspeed1);
+            auto localspeed2 = spd2.x * spd2.x + spd2.y * spd2.y;
+            if (localspeed2 > speed)
+                spd2 *= sqrt(speed * speed / localspeed2);
+            int i = 0;
+        };
+        std::cout << "\n>>";
+        for (auto i = 0; i < physics.size(); i++)
+        {
+            auto c1 = currentPhysics[i];
+            auto s1 = physics[i].shape;
+            s1.setPosition(currentPhysics[i].position);
+            physics[i] = data(s1);
+            for (auto& e : vCollisions[i])
+            {
+                auto s2 = physics[e].shape;
+                s2.setPosition(currentPhysics[e].position);
+                physics[e] = data(s2);
+                auto c2 = currentPhysics[e];
+                auto dist = c2.position - c1.position;
+                float norm = sqrt(dist.x * dist.x + dist.y * dist.y);
+                dist.x = (dist.x == 0) ? 1.0f : dist.x /= norm;
+                dist.y = (dist.y == 0) ? 1.0f : dist.y /= norm;
+                float energyEntrance =
+                    c1.mass * sqrt(c1.speed.x * c1.speed.x + c1.speed.y * c1.speed.y) +
+                    c2.mass * sqrt(c2.speed.x * c2.speed.x + c2.speed.y * c2.speed.y);
+                if (energyEntrance <= 0.0f) energyEntrance = 1.0f;
+                if (energyEntrance > 2.0f) energyEntrance = 2.0f;
+                float spd =
+                    sqrt(c1.speed.x * c1.speed.x + c1.speed.y * c1.speed.y) +
+                    sqrt(c2.speed.x * c2.speed.x + c2.speed.y * c2.speed.y);
+                float absCoef = 0.1f;
+                float c1k2 = 2 * c1.mass / (c1.mass + c2.mass);
+                c1.speed = (-spd * c1k2 * dist + c1.speed) * absCoef;
+                //assert(!isnan(c1.speed.x));
+                //assert(c1.speed.x < 10'000);
+                float c2k2 = 2 * c2.mass / (c1.mass + c2.mass);
+                c2.speed = (-spd * c1k2 * dist + c2.speed) * absCoef;
+                assert(!isnan(c2.speed.x));
+                if (i == 44)
+                    std::cout << c1.speed.x << "(" << c1.radius << ")[" << i << "/" << e << "], ";
+                //assert(c2.speed.x < 10'000);
+                float energyExit = c1.mass *
+                    sqrt(c1.speed.x * c1.speed.x + c1.speed.y * c1.speed.y) +
+                    c2.mass *
+                    sqrt(c2.speed.x * c2.speed.x + c2.speed.y * c2.speed.y);
+                if (energyExit <= 0.0f) energyExit = 1.0f;
+                if (energyExit > 2.0f) energyExit = 2.0f;
+                assert(!isinf(energyExit));
+                float energyAbsorbedCoef = energyEntrance / energyExit * absCoef;
+                c1.speed = c1.speed * energyAbsorbedCoef;
+                c2.speed = c2.speed * energyAbsorbedCoef;
+                //capSpeed(c1.speed, c2.speed);
+                auto nspd1 = currentPhysics[i].speed - c1.speed;
+                auto nspd2 = currentPhysics[e].speed - c2.speed;
+                assert(!isinf(nspd1.x));
+                //if (nspd1.x < 1000 && nspd2.x < 1000)
+                {
+                    deltaSpeeds[i].emplace_back(nspd1);
+                    deltaSpeeds[e].emplace_back(nspd2);
+                }
+            }
+        }
     }
 }
